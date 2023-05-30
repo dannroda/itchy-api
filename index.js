@@ -5,21 +5,22 @@ const app = express();
 
 app.get('/', function(req,res){
     let game_url = req.query.game_url;
-
+    let desc_format = req.query.desc_format
     request(game_url, function(error,response,html){
         if(!error){
             let $ = cheerio.load(html);
             let game_title = $('h1.game_title').text();
             let game_description = $('div.formatted_description.user_formatted').html();
-            let game_description_bbcode = htmlToBBCode(game_description)
+            if (desc_format == 'bbcode'){
+                game_description = htmlToBBCode(game_description)
+            }
             let game_cover = $('.screenshot_list > a').attr('href');
             let game_short_desc = $('meta[name=twitter:description]').attr('content')
             let game_id = $('meta[name=itch:path]').attr('content').replace('games/','')
             let game_info = tableToJSON($('div.game_info_panel_widget').html())
             let json = {
                 title: game_title,
-                description_html: game_description, 
-                description_bbcode: game_description_bbcode, 
+                description: game_description, 
                 cover_url: game_cover,
                 short_desc: game_short_desc,
                 id: game_id,
@@ -34,8 +35,7 @@ function tableToJSON(html, options = {}) {
     let output = {}
     $('tbody tr').each((index,element) => {
         let items = $(element).find('td')
-        // console.log($(items).find('a').length)
-        // output[$(items[0]).text()] = 
+        output[$(items[0]).text()] = $(items[1]).text()
         if ($(items[0]).text().includes('Author')) {
             let authors = []
             $(items).find('a').each((index,element) =>{
@@ -43,11 +43,19 @@ function tableToJSON(html, options = {}) {
                     'username': $(element).text(),
                     'url': $(element).attr('href')
                 })
-            output['Authors'] = authors
+                output['Authors'] = authors
             })
-        }else{   
-            output[$(items[0]).text()] = $(items[1]).text()
         }
+        if ($(items[0]).text().includes('Platform')) {
+            let platforms = []
+            $(items).find('a').each((i,e) => {
+                // console.log($(e))
+                platforms.push($(e).text())
+            })
+            output['Platforms'] = platforms
+
+        }
+        
     })
     return output
   }
