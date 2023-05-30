@@ -1,4 +1,6 @@
 const express = require('express');
+const axios = require('axios')
+require('dotenv').config()
 const request = require('request');
 const cheerio = require('cheerio');
 const app = express();
@@ -17,6 +19,7 @@ app.get('/', function(req,res){
             let game_cover = $('.screenshot_list > a').attr('href');
             let game_short_desc = $('meta[name=twitter:description]').attr('content')
             let game_id = $('meta[name=itch:path]').attr('content').replace('games/','')
+            get_downloads(game_id)
             let game_info = tableToJSON($('div.game_info_panel_widget').html())
             let json = {
                 title: game_title,
@@ -30,6 +33,15 @@ app.get('/', function(req,res){
         }
     });
 });
+
+function get_downloads(game_id){
+    // process.env.ITCHIO_API_KEY
+    console.log(process.env.ITCHIO_API_KEY)
+    axios.get(`https://itch.io/api/1/${process.env.ITCHIO_API_KEY}/game/${game_id}/uploads`).then(res => {
+        console.log(res['data'])
+    })
+}
+
 function tableToJSON(html, options = {}) {
     const $ = cheerio.load(html)
     let output = {}
@@ -49,7 +61,6 @@ function tableToJSON(html, options = {}) {
         if ($(items[0]).text().includes('Platform')) {
             let platforms = []
             $(items).find('a').each((i,e) => {
-                // console.log($(e))
                 platforms.push($(e).text())
             })
             output['Platforms'] = platforms
