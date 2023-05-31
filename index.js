@@ -5,10 +5,6 @@ const cheerio = require('cheerio');
 const app = express();
 const {Worker} = require('worker_threads');
 app.get('/game/*/', (req,res) => {
-    if (req.subdomains.length > 0) {
-        return next();
-    }
-    console.log(process.env.ITCHIO_API_KEY)
     // let game_url = req.query.game_url;
     let game_url = req.params[0]
     // let desc_format = req.query.desc_format
