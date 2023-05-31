@@ -1,48 +1,94 @@
 const express = require('express');
-const axios = require('axios')
 require('dotenv').config()
 const request = require('request');
 const cheerio = require('cheerio');
 const app = express();
-
-app.get('/', function(req,res){
+const {Worker} = require('worker_threads');
+app.get('/', (req,res) => {
     let game_url = req.query.game_url;
     let desc_format = req.query.desc_format
-    request(game_url, function(error,response,html){
+    request(game_url, async (error,response,html) => {
         if(!error){
             let $ = cheerio.load(html);
-            let game_title = $('h1.game_title').text();
+            let game_id = $('meta[name=itch:path]').attr('content').replace('games/','')
+            let game_downloads = await get_downloads(game_id)
             let game_description = $('div.formatted_description.user_formatted').html();
             if (desc_format == 'bbcode'){
                 game_description = htmlToBBCode(game_description)
             }
             let game_cover = $('.screenshot_list > a').attr('href');
             let game_short_desc = $('meta[name=twitter:description]').attr('content')
-            let game_id = $('meta[name=itch:path]').attr('content').replace('games/','')
-            get_downloads(game_id)
-            let game_info = tableToJSON($('div.game_info_panel_widget').html())
+            let game_title = $('h1.game_title').text();
+            let game_info = parse_game_info($('div.game_info_panel_widget').html())
             let json = {
+                id: game_id,
                 title: game_title,
                 description: game_description, 
                 cover_url: game_cover,
                 short_desc: game_short_desc,
-                id: game_id,
-                more_info:game_info
+                download: game_downloads,
+                more_info:game_info,
             };
             res.send(json);
         }
     });
 });
 
-function get_downloads(game_id){
+const get_downloads = async (game_id) => {
     // process.env.ITCHIO_API_KEY
-    console.log(process.env.ITCHIO_API_KEY)
-    axios.get(`https://itch.io/api/1/${process.env.ITCHIO_API_KEY}/game/${game_id}/uploads`).then(res => {
-        console.log(res['data'])
+    let output = {}
+    await fetch(`https://itch.io/api/1/${process.env.ITCHIO_API_KEY}/game/${game_id}/uploads`).then((res) => {
+        return res.json()
+    }).then((data) => {
+        // output = data['uploads']
+        data['uploads'].forEach(item => {
+            if(item['type'] == 'html'){
+                output['html'] = item
+            }
+            if(item['p_linux']){
+                output['linux'] = item
+            }
+            if(item['p_windows']){
+                output['windows'] = item
+            }
+            if(item['p_macos']){
+                output['macos'] = item
+            }
+            if(item['p_android']){
+                output['android'] = item
+            }
+        })
+        return Promise.all(data['uploads'].map(item => fetch(`https://itch.io/api/1/${process.env.ITCHIO_API_KEY}/upload/${item['id']}/download`)))
+    }).then(res => {
+       return Promise.all(res.map(data => data.json()))
+    }).then(res => {
+        res.forEach((item,index) => {
+
+            // safeguard to make sure that the url is correct
+            for(const [key,value] of Object.entries(output)){
+                if(value['position'] == index){
+                    value['url'] = item['url']
+                }
+                if(value['type'] == 'html'){
+                    value['embed'] = `https://itch.io/embed-upload/${value['id']}`
+                }
+            }
+        })
     })
+    // console.log(output)
+    return output
 }
 
-function tableToJSON(html, options = {}) {
+const get_download_link = async (id) => {
+    const download_url = await fetch(`https://itch.io/api/1/${process.env.ITCHIO_API_KEY}/upload/${id}/download`).then(res => res.json())
+    // await axios.get(`https://itch.io/api/1/${process.env.ITCHIO_API_KEY}/upload/${id}/download`).then(res => {
+    //     return res['data']['url']
+    // })
+
+    return download_url['url']
+}
+
+const parse_game_info = (html, options = {}) => {
     const $ = cheerio.load(html)
     let output = {}
     $('tbody tr').each((index,element) => {
@@ -61,7 +107,7 @@ function tableToJSON(html, options = {}) {
         if ($(items[0]).text().includes('Platform')) {
             let platforms = []
             $(items).find('a').each((i,e) => {
-                platforms.push($(e).text())
+                platforms.push($(e).text().toLowerCase())
             })
             output['Platforms'] = platforms
 
@@ -73,7 +119,7 @@ function tableToJSON(html, options = {}) {
 
 //Adapted from http://skeena.net/htmltobb/
 
-var htmlToBBCode = function(html) {
+const htmlToBBCode = (html) => {
 
     html = html.replace(/<pre(.*?)>(.*?)<\/pre>/gmi, "[code]$2[/code]");
   
@@ -134,6 +180,8 @@ var htmlToBBCode = function(html) {
   
       return html;
   }
+
+
 app.listen(process.env.PORT || 8080);
 console.log('API is running 0.0.0.0:8080');
 module.exports = app;
