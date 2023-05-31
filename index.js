@@ -4,16 +4,18 @@ const request = require('request');
 const cheerio = require('cheerio');
 const app = express();
 const {Worker} = require('worker_threads');
-app.get('/', (req,res) => {
-    let game_url = req.query.game_url;
-    let desc_format = req.query.desc_format
+app.get('/game/*/', (req,res) => {
+    // let game_url = req.query.game_url;
+    let game_url = req.params[0]
+    // let desc_format = req.query.desc_format
     request(game_url, async (error,response,html) => {
         if(!error){
             let $ = cheerio.load(html);
             let game_id = $('meta[name=itch:path]').attr('content').replace('games/','')
             let game_downloads = await get_downloads(game_id)
             let game_description = $('div.formatted_description.user_formatted').html();
-            if (desc_format == 'bbcode'){
+            // if (desc_format == 'bbcode'){
+            if (req.query.bbcode){
                 game_description = htmlToBBCode(game_description)
             }
             let game_cover = $('.screenshot_list > a').attr('href');
