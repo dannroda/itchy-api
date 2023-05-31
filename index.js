@@ -184,6 +184,6 @@ const htmlToBBCode = (html) => {
   }
 
 
-app.listen(process.env.PORT || 8080);
-console.log('API is running 0.0.0.0:8080');
+app.listen(process.env.PORT || 3000);
+console.log('API is running 0.0.0.0:3000');
 module.exports = app;
