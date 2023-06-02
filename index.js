@@ -62,10 +62,11 @@ app.get('/user/*/', async  (req,res) =>{
 })
 
 app.get('/jam/*/', async (req,res) =>{
+    let bbcode = req.query.bbcode
     if(req.params[0].startsWith('http')){
         request(req.params[0], async (error,response,html) =>{
             if(!error){
-                let data = await jams.get_jam_info(html)
+                let data = await jams.get_jam_info(html,bbcode)
                 res.send(data)
             }
         })
