@@ -3,6 +3,7 @@ require('dotenv').config()
 const request = require('request');
 const game = require('./src/api/game')
 const user = require('./src/api/user')
+const jams = require('./src/api/jam')
 const app = express();
 const {Worker} = require('worker_threads');
 const { type } = require('os');
@@ -43,7 +44,6 @@ app.get('/download/*/',async (req,res) =>{
 })
 
 app.get('/user/*/', async  (req,res) =>{
-    let user_id = req.params[0]
     let data
     if(req.params[0].startsWith('http')){
         request(req.params[0], async (error,response,html) => {
@@ -54,12 +54,27 @@ app.get('/user/*/', async  (req,res) =>{
         });
         // user_id = data['id']
     }else{
+        let user_id = req.params[0]
         data = await user.fetch_user_info(user_id)
         res.send(data)
     }
 
 })
 
+app.get('/jam/*/', async (req,res) =>{
+    if(req.params[0].startsWith('http')){
+        request(req.params[0], async (error,response,html) =>{
+            if(!error){
+                let data = await jams.get_jam_info(html)
+                res.send(data)
+            }
+        })
+    }else{
+        res.send({
+            error: 'Invalid jam url'
+        })
+    }
+})
 
 app.listen(process.env.PORT || 3000);
 console.log('API is running 0.0.0.0:3000');
