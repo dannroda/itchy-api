@@ -1,6 +1,6 @@
 # itchy-api
 Itch.io REST API scrapped from game page
 
-### url params:
-- game_url=<itch.io gamepage>
-- format=bbcode (optional, default returns HTML)
+It's just a prototype to better understand Itchio's API, and try to document it in the process.
+
+When it's done, will update with intructions.
